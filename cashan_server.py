@@ -71,7 +71,7 @@ class Game:
         for p in self.players:
             p.write_message(msg)
 
-PING_INTERVAL = 5
+PING_INTERVAL = 30
 
 class CashanServer:
 
