@@ -2100,7 +2100,7 @@ class TradeOtherUI:
     def player_input(self, ch):
         if ch == ord('\n'):
             self.make_offer()
-        elif ch == curses.KEY_BACKSPACE:
+        elif ch == curses.KEY_BACKSPACE or ch == curses.KEY_DC:
             self.clear_field()
         elif ch in RESOURCE_KEYS:
             self.set_field(RESOURCE_KEYS[ch])
@@ -2339,7 +2339,7 @@ class Trade(State):
             return DIE
         elif ch == ord('\n'):
             return self.make_trade()
-        elif ch == curses.KEY_BACKSPACE:
+        elif ch == curses.KEY_BACKSPACE or ch == curses.KEY_DC:
             self.clear_input(selected)
         else:
             return PASS
