@@ -32,14 +32,14 @@ VERSION = '0.0.1'
     COLOR_SPECIAL,
     # Colors for player units
     COLOR_PLAYER0, COLOR_PLAYER1, COLOR_PLAYER2, COLOR_PLAYER3,
-    ) = range(1, 17)
+    # 'any' (for harbors) uses no color
+    COLOR_ANY,
+    ) = range(1, 18)
 
 # Resource colors match their terrain
 (COLOR_BRICK, COLOR_LUMBER, COLOR_ORE, COLOR_GRAIN, COLOR_WOOL) = (
     COLOR_HILLS, COLOR_FOREST, COLOR_MOUNTAINS,
     COLOR_FIELDS, COLOR_PASTURE)
-# 'any' (for harbors) uses no color
-COLOR_ANY = 0
 
 # State.priority values
 PRI_NORMAL, PRI_HIGH = range(2)
