@@ -5,6 +5,7 @@ import curses
 from functools import partial
 import signal
 import time
+import sys
 
 __all__ = [
     'ctrl', 'main',
@@ -146,7 +147,8 @@ class Game(object):
         self.stdscr.keypad(True)
         curses.curs_set(0)
         curses.noecho()
-        signal.signal(signal.SIGWINCH, self.win_resized)
+        if not sys.platform.startswith('win'):
+            signal.signal(signal.SIGWINCH, self.win_resized)
         self.init_colors()
 
     def init_colors(self):
