@@ -17,7 +17,7 @@ from cashan import *
 from game import *
 from network import *
 
-VERSION = '0.0.1'
+VERSION = '0.0.2'
 
 # High frequency numbers
 (COLOR_HIGH,
@@ -168,7 +168,7 @@ class CashanGame(Game):
     def start_turn(self):
         '''Returns the starting State for the current player's turn'''
         if self.phase == 'setup' and self.setup_ended():
-            self.phase = 'play'
+            self.start_play()
 
         if self.player_is_local(self.player_turn):
             if self.phase == 'setup':
@@ -189,6 +189,26 @@ class CashanGame(Game):
             for p, o in self.cashan.buildings.items())
 
         return all(settlements[p] >= 2 for p in range(len(self.cashan.players)))
+
+    def start_play(self):
+        '''Called to end the 'setup' phase and begin the 'play' phase'''
+        self.phase = 'play'
+
+        players = self.cashan.players
+        resources = { n: resource_cards(0) for n in range(len(players)) }
+
+        # Award resources to each player for each tile adjacent to a settlement
+        for (pos, intr), bldg in self.cashan.buildings:
+            for p, _ in adjacent_to_intersection(pos, intr):
+                cell = self.cashan.grid.get(p)
+                if cell is not None and cell.terrain.resource is not None:
+                    resources[bldg.owner][cell.terrain.resource] += 1
+
+        for player, res in resources.items():
+            for r, n in res.items():
+                self.cashan.resources[r] -= n
+                players[player].resources[r] += n
+            self.add_action_message(player, 'resource_produced', res)
 
     def get_state(self, ty):
         if self.states:
