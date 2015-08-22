@@ -54,7 +54,11 @@ class Connection:
         if self.closed:
             return
 
-        buf = self.conn.recv(8192)
+        try:
+            buf = self.conn.recv(8192)
+        except OSError:
+            self.closed = True
+            raise
 
         if not buf:
             self.closed = True
