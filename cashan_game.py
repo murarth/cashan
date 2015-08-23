@@ -585,7 +585,7 @@ class CashanGame(Game):
                 self.add_action_message(p_max, 'longest_road', (n_max, taken))
 
     def play_card(self, card):
-        self.current_player.development_cards[card] -= 1
+        dec_item(self.current_player.development_cards, card)
 
         if self.player_turn != self.self_player:
             self.add_action_message(self.player_turn, 'play_card', card)
@@ -1441,8 +1441,15 @@ def dec(obj, attr):
     '''Decrements obj.attr, raising an Exception if the value is <= 0'''
     n = getattr(obj, attr)
     if n <= 0:
-        raise Exception('cannot dec {!r}.{}; value is {}'.format(obj, attr, n))
+        raise Exception('cannot dec {!r}.{}; value is {!r}'.format(obj, attr, n))
     setattr(obj, attr, n - 1)
+
+def dec_item(obj, key):
+    '''Decrements obj[key], raising an Exception if the value is <= 0'''
+    n = obj[key]
+    if n <= 0:
+        raise Exception('cannot dec {!r}[{!r}]; value is {!r}'.format(obj, key, n))
+    obj[key] = n - 1
 
 def index_of(itr, predicate):
     for i, obj in enumerate(itr):
