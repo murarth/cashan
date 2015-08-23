@@ -9,7 +9,7 @@ import time
 
 from network import *
 
-VERSION = '0.0.2'
+VERSION = '0.0.3'
 
 class Client(Connection):
 

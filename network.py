@@ -108,7 +108,9 @@ def instance_prepare(value, ty):
     return value
 
 def validate_message(msg):
-    if isinstance(msg, (int, float)):
+    if msg is None:
+        pass
+    elif isinstance(msg, (int, float)):
         pass
     elif isinstance(msg, dict):
         for k, v in msg.items():

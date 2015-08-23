@@ -17,7 +17,7 @@ from cashan import *
 from game import *
 from network import *
 
-VERSION = '0.0.2'
+VERSION = '0.0.3'
 
 # High frequency numbers
 (COLOR_HIGH,
@@ -90,7 +90,7 @@ class CashanGame(Game):
         # Player who is currently taking their turn
         self.player_turn = self.play_state.player_turn
         # Game phase; 'setup' or 'play'
-        self.phase = 'setup'
+        self.phase = self.play_state.phase
         # Sequence number of any active trade offer
         self.active_trade = None
         # Index into cashan.players that refers to the human player
@@ -161,7 +161,7 @@ class CashanGame(Game):
 
     def save_game_state(self):
         try:
-            save_game(self.args.save_name, self.cashan.dump_state())
+            save_game(self.args.save_name, self)
         except Exception as e:
             log('failed to save game:', e)
 
@@ -1313,8 +1313,9 @@ class CashanGame(Game):
 
 class PlayState:
 
-    def __init__(self, *, ai_players, self_player, player_turn = None):
+    def __init__(self, *, ai_players, self_player, phase = 'setup', player_turn = None):
         self.ai_players = ai_players 
+        self.phase = phase
         self.player_turn = player_turn
         self.self_player = self_player 
 
@@ -2759,21 +2760,30 @@ def save_config(args, config):
 
 def resume_game(name, players):
     with open(name, 'r') as f:
-        state = Cashan.load_state(json.load(f))
+        state = json.load(f)
 
-    names = [p.name for p in state.players]
+    game = Cashan.load_state(state.get('game', dict))
+    phase = state.get('phase')
+    player_turn = state.get('player_turn', object)
+
+    names = [p.name for p in game.players]
     if set(names) != set(players):
         raise Exception('player names do not match saved game: '
             '{!r} in this game; expected {!r}'.format(players, names))
 
-    return state
+    return game, phase, player_turn
 
-def save_game(name, state):
+def save_game(name, game):
     os.makedirs(config_path('games'), exist_ok = True)
     name = config_path('games/{}.json'.format(name))
 
     with open(name, 'w') as f:
-        json.dump(state, f)
+        json.dump({
+            'game': game.cashan.dump_state(),
+            'phase': game.phase,
+            'player_turn': game.player_turn,
+            'version': VERSION,
+        }, f)
         f.write('\n')
 
 def options():
@@ -2929,27 +2939,38 @@ if __name__ == '__main__':
         elif args.join:
             conn.write_message({ 'action': 'join', 'name': args.join })
 
-        state = wait_for_game_start(conn)
+        msg = wait_for_game_start(conn)
 
-        if 'players' in state:
-            players = state.get('players', list)
+        if 'players' in msg:
+            players = msg.get('players', list)
 
             if args.resume:
-                state = resume_game(args.resume, players)
+                game, phase, player_turn = resume_game(args.resume, players)
             else:
                 random.shuffle(players)
-                state = Cashan(random_grid(), players)
+                game = Cashan(random_grid(), players)
+                phase = 'setup'
+                player_turn = None
 
             conn.write_message({ 'action': 'send', 'body':
-                { 'action': 'start', 'state': state.dump_state() } })
-        elif 'state' in state:
-            state = Cashan.load_state(state.get('state', dict))
+                { 'action': 'start', 'state': {
+                    'game': game.dump_state(),
+                    'phase': phase,
+                    'player_turn': player_turn,
+                } } })
+        elif 'state' in msg:
+            state = msg.get('state', dict)
+            game = Cashan.load_state(state.get('game', dict))
+            phase = state.get('phase')
+            player_turn = state.get('player_turn', object)
         else:
-            raise ClientError('unexpected message: {!r}'.format(state))
+            raise ClientError('unexpected message: {!r}'.format(msg))
 
         play_state = PlayState(
             ai_players = [],
-            self_player = index_of(state.players,
+            phase = phase,
+            player_turn = player_turn,
+            self_player = index_of(game.players,
                 lambda p: p.name == config['name']))
     else:
         conn = None
@@ -2958,7 +2979,7 @@ if __name__ == '__main__':
         self_player = names.index(config['name'])
         ai_players.pop(self_player)
 
-        state = Cashan(random_grid(), names)
+        game = Cashan(random_grid(), names)
 
         play_state = PlayState(
             self_player = self_player,
@@ -2970,7 +2991,7 @@ if __name__ == '__main__':
         args.save_name = None
 
     try:
-        main(CashanGame, args, config, state, play_state, conn)
+        main(CashanGame, args, config, game, play_state, conn)
     finally:
         if LOG_FILE is not None:
             LOG_FILE.flush()
