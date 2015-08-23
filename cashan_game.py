@@ -17,7 +17,7 @@ from cashan import *
 from game import *
 from network import *
 
-VERSION = '0.0.3'
+VERSION = '0.0.4'
 
 # High frequency numbers
 (COLOR_HIGH,
@@ -107,7 +107,7 @@ class CashanGame(Game):
             self.start_connection_thread()
 
         # And off we go!
-        self.push_state(self.next_turn())
+        self.push_state(self.start_turn())
 
     def quit_game(self):
         if self.connection is None:
@@ -148,14 +148,13 @@ class CashanGame(Game):
     def next_turn(self):
         '''Advances player turn and calls start_turn'''
         self.skip_actions_flag = False
-        old = self.player_turn
+
         if self.player_turn is None:
             self.player_turn = 0
+        elif self.phase == 'setup-2':
+            self.player_turn = (self.player_turn - 1) % len(self.cashan.players)
         else:
             self.player_turn = (self.player_turn + 1) % len(self.cashan.players)
-
-        if self.player_turn == 0 and self.args.save_name:
-            self.save_game_state()
 
         return self.start_turn()
 
@@ -167,11 +166,22 @@ class CashanGame(Game):
 
     def start_turn(self):
         '''Returns the starting State for the current player's turn'''
-        if self.phase == 'setup' and self.setup_ended():
+        if self.player_turn is None:
+            self.player_turn = 0
+
+        if self.phase == 'setup' and self.setup_ended(1):
+            # For fairness, the second half of setup begins with the last
+            # player and turns are taken in reverse order.
+            self.phase = 'setup-2'
+            self.player_turn = len(self.cashan.players) - 1
+        elif self.phase == 'setup-2' and self.setup_ended(2):
             self.start_play()
 
+        if self.player_turn == 0 and self.args.save_name:
+            self.save_game_state()
+
         if self.player_is_local(self.player_turn):
-            if self.phase == 'setup':
+            if self.phase.startswith('setup'):
                 state = BuildSettlement(self,
                     [(pos, intr) for pos, intr in self.cashan.starting_positions
                         if not self.cashan.building_exists(pos, intr)])
@@ -184,15 +194,17 @@ class CashanGame(Game):
 
         return state
 
-    def setup_ended(self):
+    def setup_ended(self, n):
         settlements = Counter(o.owner
             for p, o in self.cashan.buildings.items())
 
-        return all(settlements[p] >= 2 for p in range(len(self.cashan.players)))
+        return all(settlements[p] == n for p in range(len(self.cashan.players)))
 
     def start_play(self):
         '''Called to end the 'setup' phase and begin the 'play' phase'''
         self.phase = 'play'
+        # 'setup-2' is in reverse order, so we set the normal order again.
+        self.player_turn = 0
 
         players = self.cashan.players
         resources = { n: resource_cards(0) for n in range(len(players)) }
@@ -476,7 +488,7 @@ class CashanGame(Game):
 
     def place_settlement(self, pos, intr):
         '''Places a settlement as the current player'''
-        if self.phase != 'setup':
+        if not self.phase.startswith('setup'):
             self.player_purchase(Settlement)
         self.place_building_by(self.player_turn, Settlement, pos, intr)
 
@@ -1526,14 +1538,14 @@ class BuildSettlement(State):
 
     def select_position(self, pos, intr):
         self.game.place_settlement(pos, intr)
-        if self.game.phase == 'setup':
+        if self.game.phase.startswith('setup'):
             self.game.push_state(BuildRoad(self.game,
                 [(p, i) for p, i in intr_edges(pos, intr)
                     if self.game.cashan.edge_exists(p, i)],
                     no_cost = True))
 
     def can_cancel(self):
-        return self.game.phase != 'setup'
+        return not self.game.phase.startswith('setup')
 
     def draw_state(self, y, x):
         pos, intr = self.positions[self.selected]
@@ -1612,7 +1624,7 @@ class BuildRoad(State):
         self.game.place_road(pos, edge, no_cost = self.no_cost)
 
     def can_cancel(self):
-        return self.game.phase != 'setup'
+        return not self.game.phase.startswith('setup')
 
     def draw_state(self, y, x):
         pos, edge = self.positions[self.selected]
