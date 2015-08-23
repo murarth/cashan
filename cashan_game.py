@@ -2001,8 +2001,13 @@ class TradeOffer(State):
         player, n, resource = offer
         if self.mode == 'offer':
             self.game.trade_with_player(player, self.n, self.resource, n, resource)
+            return DIE
         else:
+            if self.game.current_player.resources[resource] < n:
+                self.game.set_message('Not enough {} to trade'.format(resource.name))
+                return CONSUME
             self.game.trade_with_player(player, n, resource, self.n, self.resource)
+            return DIE
 
     def reject_offer(self, index = None, *, player = None):
         if index is None:
@@ -2064,8 +2069,7 @@ class TradeOwnerUI:
             return DIE
         elif ch == ord('\n'):
             if self.selected is not None:
-                self.trade.accept_offer(self.trade.offers[self.selected])
-                return DIE
+                return self.trade.accept_offer(self.trade.offers[self.selected])
         else:
             return PASS
         return CONSUME
@@ -2144,7 +2148,7 @@ class TradeOtherUI:
             self.game.set_message('Cannot trade same resource')
         elif n == 0:
             self.game.set_message('Cannot trade zero')
-        elif player.resources[r] < n:
+        elif self.trade.mode == 'offer' and player.resources[r] < n:
             self.game.set_message('Not enough {} to trade'.format(r.name))
         else:
             self.trade.submit_offer(self.game.self_player, n, r)
