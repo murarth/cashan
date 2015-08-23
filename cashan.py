@@ -666,8 +666,8 @@ Road = Item('Road', [
 Settlement = Item('Settlement', [
     (1, Brick),
     (1, Lumber),
-    (1, Wool),
     (1, Grain),
+    (1, Wool),
 ])
 City = Item('City', [
     (3, Ore),
@@ -675,8 +675,8 @@ City = Item('City', [
 ])
 DevelopmentCard = Item('Development Card', [
     (1, Ore),
-    (1, Wool),
     (1, Grain),
+    (1, Wool),
 ])
 
 Hills = Terrain('Hills', Brick)
